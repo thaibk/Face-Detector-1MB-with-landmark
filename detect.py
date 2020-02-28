@@ -14,6 +14,7 @@ from models.net_slim import Slim
 from models.net_rfb import RFB
 from utils.box_utils import decode, decode_landm
 from utils.timer import Timer
+import imutils
 
 
 parser = argparse.ArgumentParser(description='Test')
@@ -94,17 +95,18 @@ if __name__ == '__main__':
     cudnn.benchmark = True
     device = torch.device("cpu" if args.cpu else "cuda")
     net = net.to(device)
+    args.origin_size = False
 
     # testing begin
     for i in range(100):
-        image_path = "./img/sample.jpg"
+        image_path = "fail.jpg"
 
         img_raw = cv2.imread(image_path, cv2.IMREAD_COLOR)
         img = np.float32(img_raw)
 
         # testing scale
-        target_size = args.long_side
-        max_size = args.long_side
+        target_size = args.long_side  # 640
+        max_size = args.long_side  # 640
         im_shape = img.shape
         im_size_min = np.min(im_shape[0:2])
         im_size_max = np.max(im_shape[0:2])
@@ -117,6 +119,7 @@ if __name__ == '__main__':
 
         if resize != 1:
             img = cv2.resize(img, None, None, fx=resize, fy=resize, interpolation=cv2.INTER_LINEAR)
+            print(img.shape)
         im_height, im_width, _ = img.shape
 
 
@@ -171,12 +174,10 @@ if __name__ == '__main__':
         landms = landms[:args.keep_top_k, :]
 
         dets = np.concatenate((dets, landms), axis=1)
-
+        dets = dets[dets[:, 4] > args.vis_thres]
         # show image
         if args.save_image:
             for b in dets:
-                if b[4] < args.vis_thres:
-                    continue
                 text = "{:.4f}".format(b[4])
                 b = list(map(int, b))
                 cv2.rectangle(img_raw, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 2)
@@ -193,6 +194,10 @@ if __name__ == '__main__':
                 cv2.circle(img_raw, (b[13], b[14]), 1, (255, 0, 0), 4)
             # save image
 
-            name = "test.jpg"
-            cv2.imwrite(name, img_raw)
-
+            # name = "test.jpg"
+            # cv2.imwrite(name, img_raw)
+            cv2.imshow("frame", imutils.resize(img_raw, width=1200))
+            key = cv2.waitKey(0)
+            if key == ord("q"):
+                break
+        cv2.destroyAllWindows()
